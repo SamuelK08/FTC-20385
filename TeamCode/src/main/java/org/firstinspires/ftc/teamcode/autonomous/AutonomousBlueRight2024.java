@@ -49,7 +49,7 @@ public class AutonomousBlueRight2024 extends LinearOpMode {
     private DcMotor launcher;
     private boolean targetFound = false;
     private AprilTagDetection desiredTag = null;
-    private int DESIRED_TAG_ID = 0; //change for which tag depending on position
+    private String DESIRED_TAG_ID; //change for which tag depending on position
 
     private Servo clawL;
     private Servo clawR;
@@ -72,6 +72,8 @@ public class AutonomousBlueRight2024 extends LinearOpMode {
     private boolean pos1;
     private boolean pos2;
     private boolean pos3;
+
+    private String aprilTagTarget;
 
     private double motorPower = 0.75;
 
@@ -108,10 +110,11 @@ public class AutonomousBlueRight2024 extends LinearOpMode {
      */
     @Override
     public void runOpMode() {
+        initAprilTag();
         while (opModeInInit()) { // Tell the driver that initialization is complete.
             //init everything
 
-            //initTfod();
+
 
             telemetry.addData("Status", "Initializing ...");
             telemetry.update();
@@ -228,8 +231,11 @@ public class AutonomousBlueRight2024 extends LinearOpMode {
             }
 
             //telemetry AprilTag
-            DESIRED_TAG_ID = 003;
-            telemetryAprilTag(DESIRED_TAG_ID);
+            while(DESIRED_TAG_ID != aprilTagTarget && distanceSensor.getDistance(DistanceUnit.INCH) < 24) {
+                aprilTagTarget = telemetryAprilTag();
+                strafeLeftEncoder(3.125, 0.2);
+            }
+
             sleep(100);
             armEncoderDrive(1250, 0.5);
             liftEncoderDrive(-2000, -1.0);
@@ -496,38 +502,34 @@ public class AutonomousBlueRight2024 extends LinearOpMode {
     }   // end method initAprilTag()
 // end method initAprilTag()
 
-    private void telemetryAprilTag(int DESIRED_TAG_ID) {
-        targetFound = false;
-        desiredTag = null;
+    private String telemetryAprilTag() {
 
-        // Step through the list of detected tags and look for a matching tag
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
-        while(!targetFound && opModeIsActive()) {
-            for (AprilTagDetection detection : currentDetections) {
-                // Look to see if we have size info on this tag.
-                if (detection.metadata != null) {
-                    //  Check to see if we want to track towards this tag.
-                    sleep(500);
-                    if ((DESIRED_TAG_ID < 0) || (detection.id == DESIRED_TAG_ID)) {
-                        // Yes, we want to use this tag.
-                        targetFound = true;
-                        desiredTag = detection;
-                        break; // don't look any further.
-                    } else {
-                        // This tag is in the library, but we do not want to track it right now.
-                        telemetry.addData("Skipping", "Tag ID %d is not desired", detection.id);
+        telemetry.addData("# AprilTags Detected", currentDetections.size());
 
-                    }
-                } else {
-                    // This tag is NOT in the library, so we don't have enough information to track to it.
-                    telemetry.addData("Unknown", "Tag ID %d is not in TagLibrary", detection.id);
-                    telemetry.update();
-                }
+        // Step through the list of detections and display info for each one.
+        for (AprilTagDetection detection : currentDetections) {
+            if (detection.metadata != null) {
+                telemetry.addLine(String.format("\n==== (ID %d) %s", detection.id, detection.metadata.name));
+                telemetry.addLine(String.format("XYZ %6.1f %6.1f %6.1f  (inch)", detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z));
+                telemetry.addLine(String.format("PRY %6.1f %6.1f %6.1f  (deg)", detection.ftcPose.pitch, detection.ftcPose.roll, detection.ftcPose.yaw));
+                telemetry.addLine(String.format("RBE %6.1f %6.1f %6.1f  (inch, deg, deg)", detection.ftcPose.range, detection.ftcPose.bearing, detection.ftcPose.elevation));
+            } else {
+                telemetry.addLine(String.format("\n==== (ID %d) Unknown", detection.id));
+                telemetry.addLine(String.format("Center %6.0f %6.0f   (pixels)", detection.center.x, detection.center.y));
             }
-            strafeLeftEncoder(3.125, 0.2);
 
-        }
-    }   // end method telemetryAprilTag()
+            return detection.metadata.name;
+        }   // end for() loop
+
+        // Add "key" information to telemetry
+        telemetry.addLine("\nkey:\nXYZ = X (Right), Y (Forward), Z (Up) dist.");
+        telemetry.addLine("PRY = Pitch, Roll & Yaw (XYZ Rotation)");
+        telemetry.addLine("RBE = Range, Bearing & Elevation");
+
+
+        return null;
+    }
 
 
 //    private String telemetryTfod() {

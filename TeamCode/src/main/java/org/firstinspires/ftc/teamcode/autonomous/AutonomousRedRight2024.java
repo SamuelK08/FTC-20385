@@ -119,38 +119,38 @@ public class AutonomousRedRight2024 extends LinearOpMode {
             telemetry.addData("Status", "Initializing ...");
             telemetry.update();
 
-            clawL = hardwareMap.get(Servo.class, "clawL");
-            clawR = hardwareMap.get(Servo.class, "clawR");
-            armServo = hardwareMap.get(Servo.class, "armServo");
+//            clawL = hardwareMap.get(Servo.class, "clawL");
+//            clawR = hardwareMap.get(Servo.class, "clawR");
+//            armServo = hardwareMap.get(Servo.class, "armServo");
+//
+//            frontRight = hardwareMap.get(DcMotor.class, "frontRight");
+//            frontLeft = hardwareMap.get(DcMotor.class, "frontLeft");
+//            backRight = hardwareMap.get(DcMotor.class, "backRight");
+//            backLeft = hardwareMap.get(DcMotor.class, "backLeft");
+//
+//            lift = hardwareMap.get(DcMotorEx.class, "lift");
+//            arm = hardwareMap.get(DcMotorEx.class, "arm");
+//
+//            servo = hardwareMap.get(Servo.class, "servo");
+//
+//            sensor = hardwareMap.get(DistanceSensor.class, "sensor");
+//            distanceSensor = hardwareMap.get(DistanceSensor.class, "distanceSensor");
+//
+//            telemetry.addData("Lift current position: ", lift.getCurrentPosition());
+//            telemetry.update();
 
-            frontRight = hardwareMap.get(DcMotor.class, "frontRight");
-            frontLeft = hardwareMap.get(DcMotor.class, "frontLeft");
-            backRight = hardwareMap.get(DcMotor.class, "backRight");
-            backLeft = hardwareMap.get(DcMotor.class, "backLeft");
+//            //imu
+//            BNO055IMU.Parameters imuParameters = new BNO055IMU.Parameters();
+//
+//            imuParameters.mode = BNO055IMU.SensorMode.IMU;
+//            imuParameters.angleUnit = BNO055IMU.AngleUnit.DEGREES;
+//            imuParameters.accelUnit = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
+//            imuParameters.loggingEnabled = false;
+//
+//            imu = hardwareMap.get(BNO055IMU.class, "imu");
+//
+//            imu.initialize(imuParameters);
 
-            lift = hardwareMap.get(DcMotorEx.class, "lift");
-            arm = hardwareMap.get(DcMotorEx.class, "arm");
-
-            servo = hardwareMap.get(Servo.class, "servo");
-
-            sensor = hardwareMap.get(DistanceSensor.class, "sensor");
-            distanceSensor = hardwareMap.get(DistanceSensor.class, "distanceSensor");
-
-            telemetry.addData("Lift current position: ", lift.getCurrentPosition());
-            telemetry.update();
-
-            //imu
-            BNO055IMU.Parameters imuParameters = new BNO055IMU.Parameters();
-
-            imuParameters.mode = BNO055IMU.SensorMode.IMU;
-            imuParameters.angleUnit = BNO055IMU.AngleUnit.DEGREES;
-            imuParameters.accelUnit = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
-            imuParameters.loggingEnabled = false;
-
-            imu = hardwareMap.get(BNO055IMU.class, "imu");
-
-            imu.initialize(imuParameters);
-            initAprilTag();
 
             //label = telemetryTfod();
 
@@ -158,8 +158,8 @@ public class AutonomousRedRight2024 extends LinearOpMode {
             //telemetryAprilTag();
 
             // Share the CPU.
-            clawL.setPosition(clawLClose);
-            clawR.setPosition(clawRClose);
+//            clawL.setPosition(clawLClose);
+//            clawR.setPosition(clawRClose);
 //            encoderDrive(-1000, -0.5);
         }
 
@@ -388,19 +388,40 @@ public class AutonomousRedRight2024 extends LinearOpMode {
 
     private void initAprilTag() {
 
-        // Create the AprilTag processor the easy way.
-        aprilTag = AprilTagProcessor.easyCreateWithDefaults();
+        // Create the AprilTag processor.
+        aprilTag = new AprilTagProcessor.Builder()
+                //.setDrawAxes(false)
+                //.setDrawCubeProjection(false)
+                //.setDrawTagOutline(true)
+                //.setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
+                //.setTagLibrary(AprilTagGameDatabase.getCenterStageTagLibrary())
+                //.setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
 
-        // Create the vision portal the easy way.
+                // == CAMERA CALIBRATION ==
+                // If you do not manually specify calibration parameters, the SDK will attempt
+                // to load a predefined calibration for your camera.
+                //.setLensIntrinsics(578.272, 578.272, 402.145, 221.506)
+
+                // ... these parameters are fx, fy, cx, cy.
+
+                .build();
+
+        // Create the vision portal by using a builder.
+        VisionPortal.Builder builder = new VisionPortal.Builder();
+
+        // Set the camera (webcam vs. built-in RC phone camera).
         if (USE_WEBCAM) {
-            visionPortal = VisionPortal.easyCreateWithDefaults(
-                    hardwareMap.get(WebcamName.class, "webcam"), aprilTag);
+            builder.setCamera(hardwareMap.get(WebcamName.class, "Webcam"));
         } else {
-            visionPortal = VisionPortal.easyCreateWithDefaults(
-                    BuiltinCameraDirection.BACK, aprilTag);
+            builder.setCamera(BuiltinCameraDirection.BACK);
         }
 
-    }   // end method initAprilTag()
+        builder.addProcessor(aprilTag);
+
+        // Build the Vision Portal, using the above settings.
+        visionPortal = builder.build();
+        sleep(50);
+    }
 // end method initAprilTag()
 
     private String telemetryAprilTag() {
