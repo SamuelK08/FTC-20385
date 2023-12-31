@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
+
 @Autonomous(name = "AutoRedRight2024", group = "Linear Opmode")
 public class AutonomousRedRight2024 extends LinearOpMode {
     private ElapsedTime runtime = new ElapsedTime();
@@ -108,6 +109,7 @@ public class AutonomousRedRight2024 extends LinearOpMode {
     /*
      * Code to run ONCE when the driver hits INIT
      */
+    //camera trial
     @Override
     public void runOpMode() {
         initAprilTag();
