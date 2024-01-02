@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode.teleop;
 
-import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -14,11 +13,7 @@ import java.util.TimerTask;
 
 import static java.lang.Thread.sleep;
 
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
-import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 
 /*
  * This file contains an example of an iterative (Non-Linear) "OpMode".
@@ -39,7 +34,6 @@ public class TeleOp2024 extends OpMode {
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
     Timer timer = new Timer();
-    BNO055IMU imu;
     private boolean isSpeedToggle = false;
 
     private DcMotor frontLeft;
@@ -61,11 +55,11 @@ public class TeleOp2024 extends OpMode {
     private Servo servo;
     private DistanceSensor sensor;
 
-    Orientation lastAngles = new Orientation();
-    private double globalAngle;
+    private int liftPosition;
 
-    private double motorPower = 0.75;
+    private double motorPower = 0.5;
 
+    private int armPosition;
     static final double COUNTS_PER_MOTOR_REV = 383.6;    // eg: TETRIX Motor Encoder
     static final double DRIVE_GEAR_REDUCTION = 1.0;     // This is < 1.0 if geared UP... maybe 1??
     static final double WHEEL_DIAMETER_INCHES = 10 / 2.54;     // For figuring circumference
@@ -100,23 +94,10 @@ public class TeleOp2024 extends OpMode {
 
         distanceSensor = hardwareMap.get(DistanceSensor.class, "distanceSensor");
 
-
         telemetry.addData("lift.getCurrentPosition", lift.getCurrentPosition());
         telemetry.addData("arm.getCurrentPosition(): ", arm.getCurrentPosition());
         telemetry.update();
 
-        BNO055IMU.Parameters imuParameters = new BNO055IMU.Parameters();
-
-        imuParameters.mode = BNO055IMU.SensorMode.IMU;
-        imuParameters.angleUnit = BNO055IMU.AngleUnit.DEGREES;
-        imuParameters.accelUnit = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
-        imuParameters.loggingEnabled = false;
-
-        imu = hardwareMap.get(BNO055IMU.class, "imu");
-
-        imu.initialize(imuParameters);
-
-        armServo.setPosition(0.25);
         runtime.reset();
     }
 
@@ -126,35 +107,30 @@ public class TeleOp2024 extends OpMode {
     @Override
     public void loop() {
         telemetry.addData("lift.currentPosition(): ", lift.getCurrentPosition());
-        telemetry.addData("arm.currentPosition(): ", arm.getCurrentPosition());
-        telemetry.addData("armServo.getPosition(): ", armServo.getPosition());
-        telemetry.addData("clawR.getPosition(): ", clawR.getPosition());
-        telemetry.addData("runtime.milliseconds(): ", runtime.milliseconds());
-
         telemetry.addData("motorPower: ", motorPower);
-
+        telemetry.addData("armServo.getPosition(): ", armServo.getPosition());
         telemetry.update();
 
         //toggle speed
         if (gamepad1.right_bumper) {
             if (!isSpeedToggle) {
-                motorPower = 0.875;
+                motorPower = 0.625;
                 isSpeedToggle = true;
             } else {
-                motorPower = 0.75;
+                motorPower = 0.5;
                 isSpeedToggle = false;
             }
         } else if (gamepad1.left_bumper) {
             if (!isSpeedToggle) {
-                motorPower = 0.625;
+                motorPower = 0.375;
                 isSpeedToggle = true;
             } else {
-                motorPower = 0.75;
+                motorPower = 0.5;
                 isSpeedToggle = false;
             }
         }
 
-
+        //drive and strafe
         if (gamepad1.left_stick_x < -0.85) {
             strafeRight(motorPower);
         }
@@ -163,84 +139,183 @@ public class TeleOp2024 extends OpMode {
         }
         else {
             if (Math.abs(this.gamepad1.right_stick_x) > 0.3) {
-                frontRight.setPower(motorPower * 0.775 * (this.gamepad1.left_stick_y - this.gamepad1.left_stick_x - this.gamepad1.right_stick_x));
-                frontLeft.setPower(motorPower * 0.775 * (-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x - this.gamepad1.right_stick_x));
-                backRight.setPower(motorPower * 0.775 * -(-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x + this.gamepad1.right_stick_x));
-                backLeft.setPower(motorPower * 0.775 * -(this.gamepad1.left_stick_y - this.gamepad1.left_stick_x + this.gamepad1.right_stick_x));
+                frontRight.setPower(motorPower * 0.775 * (-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x - this.gamepad1.right_stick_x));
+                frontLeft.setPower(motorPower * 0.775 * (this.gamepad1.left_stick_y - this.gamepad1.left_stick_x - this.gamepad1.right_stick_x));
+                backRight.setPower(motorPower * 0.775 * -(this.gamepad1.left_stick_y - this.gamepad1.left_stick_x + this.gamepad1.right_stick_x));
+                backLeft.setPower(motorPower * 0.775 * -(-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x + this.gamepad1.right_stick_x));
             }
             else {
-                frontRight.setPower(motorPower * -(this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
-                frontLeft.setPower(motorPower * -(-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
-                backRight.setPower(motorPower * (-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
-                backLeft.setPower(motorPower * (this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
+                frontRight.setPower(motorPower * (-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
+                frontLeft.setPower(motorPower * (this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
+                backRight.setPower(motorPower * -(this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
+                backLeft.setPower(motorPower * -(-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
             }
         }
-
-
 
         //claw
         if(gamepad1.a) {
-            clawL.setPosition(0.85);
-            clawR.setPosition(0.0000000001);
+            clawL.setPosition(0.7);
+            clawR.setPosition(0.3);
         } else if(gamepad1.b) {
-            clawL.setPosition(0.375);
-            clawR.setPosition(0.625);
-        } else if(gamepad1.x) {
-            resetAngle();
-            stopMotors();
+            clawL.setPosition(0.00001);
+            clawR.setPosition(1);
         }
 
         //hang from bar
-        if(gamepad1.y) {
-            armEncoderDrive(888, 0.5);
-        }
-
         //armServo
         if(gamepad1.dpad_up) {
-            armServo.setPosition(armServo.getPosition() + 0.4);
-        } else if(gamepad1.dpad_down) {
-            armServo.setPosition(armServo.getPosition() - 0.4);
+            armServo.setPosition(armServo.getPosition() + 0.025);
+            telemetry.addData("armServo.getCurrentPosition() dpad up:", armServo.getPosition());
+            telemetry.update();
+        }
+        else if(gamepad1.dpad_down) {
+            armServo.setPosition(armServo.getPosition() - 0.025);
+            telemetry.addData("armServo.getCurrentPosition() dpad down:", armServo.getPosition());
+            telemetry.update();
+        }
+
+
+        if(gamepad2.dpad_up) {
+            armServo.setPosition(0.04);
+            telemetry.addData("armServo.getCurrentPosition() dpad up:", armServo.getPosition());
+            telemetry.update();
+        }
+        else if(gamepad2.dpad_down) {
+            armServo.setPosition(0);
+            telemetry.addData("armServo.getCurrentPosition() dpad down:", armServo.getPosition());
+            telemetry.update();
         }
 
         //arm
-        if(gamepad2.right_stick_y < -0.2) {
-            arm.setTargetPosition(arm.getCurrentPosition() + 75);
-            arm.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
-            arm.setPower(0.42 * Math.abs(gamepad2.right_stick_y));
-        } else if(gamepad2.right_stick_y > 0.2) {
-            arm.setTargetPosition(arm.getCurrentPosition() - 75);
-            arm.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
-            arm.setPower(0.42 * -Math.abs(gamepad2.right_stick_y));
+
+        //new arm:
+        if (gamepad2.right_stick_y > 0.2) {
+            armPosition = arm.getCurrentPosition();
+            if(armPosition > -250) {
+                arm.setTargetPosition(armPosition - 50);
+                arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                arm.setPower(0.42 * -Math.abs(gamepad2.right_stick_y));
+
+                runtime.reset();
+                while(runtime.milliseconds() < 100) {
+                    if (gamepad1.left_stick_x < -0.85) {
+                        strafeRight(motorPower);
+                    }
+                    else if (gamepad1.left_stick_x > 0.85) {
+                        strafeLeft(motorPower);
+                    }
+                    else {
+                        if (Math.abs(this.gamepad1.right_stick_x) > 0.3) {
+                            frontRight.setPower(motorPower * 0.775 * (-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x - this.gamepad1.right_stick_x));
+                            frontLeft.setPower(motorPower * 0.775 * (this.gamepad1.left_stick_y - this.gamepad1.left_stick_x - this.gamepad1.right_stick_x));
+                            backRight.setPower(motorPower * 0.775 * -(this.gamepad1.left_stick_y - this.gamepad1.left_stick_x + this.gamepad1.right_stick_x));
+                            backLeft.setPower(motorPower * 0.775 * -(-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x + this.gamepad1.right_stick_x));
+                        }
+                        else {
+                            frontRight.setPower(motorPower * (-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
+                            frontLeft.setPower(motorPower * (this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
+                            backRight.setPower(motorPower * -(this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
+                            backLeft.setPower(motorPower * -(-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
+                        }
+                    }
+                }
+                // arm.setPower(0.95);
+
+                telemetry.addData("arm.getCurrentPosition() right stick:", arm.getCurrentPosition());
+                telemetry.update();
+            } else {
+                arm.setTargetPosition(armPosition);
+                arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+//              arm.setPower(0.12 * -Math.abs(gamepad2.right_stick_y));
+            }
+
+        } else if (gamepad2.right_stick_y < -0.2) {
+            armPosition = arm.getCurrentPosition();
+            if(armPosition < 2400) {
+                arm.setTargetPosition(armPosition + 50);
+                arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                arm.setPower(0.42 * Math.abs(gamepad2.right_stick_y));
+
+                runtime.reset();
+                while(runtime.milliseconds() < 100) {
+                    if (gamepad1.left_stick_x < -0.85) {
+                        strafeRight(motorPower);
+                    }
+                    else if (gamepad1.left_stick_x > 0.85) {
+                        strafeLeft(motorPower);
+                    }
+                    else {
+                        if (Math.abs(this.gamepad1.right_stick_x) > 0.3) {
+                            frontRight.setPower(motorPower * 0.775 * (-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x - this.gamepad1.right_stick_x));
+                            frontLeft.setPower(motorPower * 0.775 * (this.gamepad1.left_stick_y - this.gamepad1.left_stick_x - this.gamepad1.right_stick_x));
+                            backRight.setPower(motorPower * 0.775 * -(this.gamepad1.left_stick_y - this.gamepad1.left_stick_x + this.gamepad1.right_stick_x));
+                            backLeft.setPower(motorPower * 0.775 * -(-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x + this.gamepad1.right_stick_x));
+                        }
+                        else {
+                            frontRight.setPower(motorPower * (-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
+                            frontLeft.setPower(motorPower * (this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
+                            backRight.setPower(motorPower * -(this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
+                            backLeft.setPower(motorPower * -(-this.gamepad1.left_stick_y - this.gamepad1.left_stick_x));
+                        }
+                    }
+                }
+                // arm.setPower(0.95);
+                telemetry.addData("arm.getCurrentPosition() right stick:", arm.getCurrentPosition());
+                telemetry.update();
+            } else {
+                arm.setTargetPosition(armPosition);
+                arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+//              arm.setPower(0.12 * -Math.abs(gamepad2.right_stick_y));
+            }
+        } else {
+            armPosition = arm.getCurrentPosition();
+            telemetry.addData("arm.getCurrentPosition() right stick:", arm.getCurrentPosition());
+            telemetry.update();
         }
 
+
+
+
         //lift
-        if (gamepad2.left_stick_y < -0.2) { //going up?
-            lift.setTargetPosition(lift.getCurrentPosition() + 150);
-            lift.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
-            lift.setPower(10 * -Math.abs(gamepad2.left_stick_y));
-        } else if (gamepad2.left_stick_y > 0.2) {
-            lift.setTargetPosition(lift.getCurrentPosition() - 150);
-            lift.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
-            lift.setPower(10 * Math.abs(gamepad2.left_stick_y));                 // start to check lift down -> is go home ?
+        if (gamepad2.left_stick_y > 0.2) {
+            liftPosition = lift.getCurrentPosition() - 100;
+//            if(liftPosition < 1600) {
+//                lift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+//            }
+            lift.setTargetPosition(liftPosition);
+            lift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+//            lift.setPower(0.42 * -Math.abs(gamepad2.left_stick_y));
+            lift.setPower(0.95);
+            runtime.reset();
+
+
+            telemetry.addData("lift.getCurrentPosition() left stick:", lift.getCurrentPosition());
+            telemetry.update();
+        } else if (gamepad2.left_stick_y < -0.2) {
+            liftPosition = lift.getCurrentPosition() + 100;
+            lift.setTargetPosition(liftPosition);
+            lift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+//            lift.setPower(0.42 * Math.abs(gamepad2.left_stick_y));                 // start to check lift down -> is go home ?
+            lift.setPower(-0.95);                 // start to check lift down -> is go home ?
+
+            telemetry.addData("lift.getCurrentPosition() left stick:", lift.getCurrentPosition());
+            telemetry.update();
+        } else {
+            lift.setPower(0);
         }
 
         //gamepad2 buttons, arm + lift
         if(gamepad2.a) {
-            armEncoderDrive(-265, -0.75);
-        } else if(gamepad2.y) {
-            armEncoderDrive(1250, 0.5);
-            encoderDrive(-2000, -1.0);
-            armServo.setPosition(armServo.getPosition() + 0.4);
+            armEncoderDrive(300, 0.75);
+            encoderDrive(0, -0.75);
         } else if(gamepad2.b) {
-            runtime.reset();
-            encoderDrive(7500, 0.5);
-            while(runtime.milliseconds() <= 3000) {
-                telemetry.update();
-            }
-            armEncoderDrive(-600, -0.5);
+            armEncoderDrive(-232, -0.75);
+            encoderDrive(11000, 0.75);
         } else if(gamepad2.x) {
-            encoderDrive(-600, -0.5);
-            armEncoderDrive(-265, -0.5);
+            runtime.reset();
+            encoderDrive(5000, 0.625);
+        } else if(gamepad2.y) {
+            armEncoderDrive(2000, 0.75);
         }
 
 
@@ -275,14 +350,20 @@ public class TeleOp2024 extends OpMode {
         }
     }
 
-    private void armEncoderDrive(int armInches, double speed) {
-        arm.setTargetPosition(armInches);
-        arm.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+    private void encoderDriveDown(int liftInches, double speed) {
+        lift.setTargetPosition(liftInches);
+        lift.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
 
-        while(arm.getCurrentPosition() >= armInches) {
-            arm.setPower(speed);
+        while(lift.getCurrentPosition() <= liftInches) {
+            lift.setPower(speed);
+        }
+
+        if(lift.getCurrentPosition() > liftInches) {
+            lift.setPower(0);
         }
     }
+
+
 
     protected void drive(double speed,
                          double FrontLeftInches, double FrontRightInches, double BackLeftInches, double BackRightInches,
@@ -297,10 +378,10 @@ public class TeleOp2024 extends OpMode {
         double curSpeed; // Keep track of speed as we ramp
 
         //DUE TO ORIENTATION OF MOTORS, LEFT MOTORS HAVE TO HAVE SIGN REVERSED FOR DISTANCES. maybe.
-        newFrontLeftTarget = frontLeft.getCurrentPosition() + (int) (FrontLeftInches * COUNTS_PER_INCH);
-        newFrontRightTarget = frontRight.getCurrentPosition() + (int) (-FrontRightInches * COUNTS_PER_INCH);
-        newBackLeftTarget = backLeft.getCurrentPosition() + (int) (BackLeftInches * COUNTS_PER_INCH);
-        newBackRightTarget = backRight.getCurrentPosition() + (int) (-BackRightInches * COUNTS_PER_INCH);
+        newFrontLeftTarget = frontLeft.getCurrentPosition() + (int) (-FrontLeftInches * COUNTS_PER_INCH);
+        newFrontRightTarget = frontRight.getCurrentPosition() + (int) (FrontRightInches * COUNTS_PER_INCH);
+        newBackLeftTarget = backLeft.getCurrentPosition() + (int) (-BackLeftInches * COUNTS_PER_INCH);
+        newBackRightTarget = backRight.getCurrentPosition() + (int) (BackRightInches * COUNTS_PER_INCH);
         frontLeft.setTargetPosition(newFrontLeftTarget);
         frontRight.setTargetPosition(newFrontRightTarget);
         backLeft.setTargetPosition(newBackLeftTarget);
@@ -368,17 +449,17 @@ public class TeleOp2024 extends OpMode {
     }
 
     private void strafeRight(double tgtPower) {
-        frontRight.setPower(-tgtPower);
-        frontLeft.setPower(-tgtPower);
-        backRight.setPower(tgtPower);
-        backLeft.setPower(tgtPower);
-    }
-
-    private void strafeLeft(double tgtPower) {
         frontRight.setPower(tgtPower);
         frontLeft.setPower(tgtPower);
         backRight.setPower(-tgtPower);
         backLeft.setPower(-tgtPower);
+    }
+
+    private void strafeLeft(double tgtPower) {
+        frontRight.setPower(-tgtPower);
+        frontLeft.setPower(-tgtPower);
+        backRight.setPower(tgtPower);
+        backLeft.setPower(tgtPower);
     }
 
     protected void stopMotors() {
@@ -388,9 +469,9 @@ public class TeleOp2024 extends OpMode {
         backLeft.setPower(0);
     }
 
-    protected void resetAngle() {
-        lastAngles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
-
-        globalAngle = 0;
+    private void armEncoderDrive(int armInches, double speed) {
+        arm.setTargetPosition(armInches);
+        arm.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+        arm.setPower(speed);
     }
 }

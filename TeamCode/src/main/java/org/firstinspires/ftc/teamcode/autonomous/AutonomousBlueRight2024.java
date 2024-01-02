@@ -49,7 +49,7 @@ public class AutonomousBlueRight2024 extends LinearOpMode {
     private DcMotor launcher;
     private boolean targetFound = false;
     private AprilTagDetection desiredTag = null;
-    private String DESIRED_TAG_ID; //change for which tag depending on position
+    private int DESIRED_TAG_ID = 0; //change for which tag depending on position
 
     private Servo clawL;
     private Servo clawR;
@@ -76,6 +76,8 @@ public class AutonomousBlueRight2024 extends LinearOpMode {
     private String aprilTagTarget;
 
     private double motorPower = 0.75;
+
+    private int count = 0;
 
     BNO055IMU imu;
     Orientation lastAngles = new Orientation();
@@ -110,7 +112,7 @@ public class AutonomousBlueRight2024 extends LinearOpMode {
      */
     @Override
     public void runOpMode() {
-        initAprilTag();
+        //initAprilTag();
         while (opModeInInit()) { // Tell the driver that initialization is complete.
             //init everything
 
@@ -150,7 +152,7 @@ public class AutonomousBlueRight2024 extends LinearOpMode {
             imu = hardwareMap.get(BNO055IMU.class, "imu");
 
             imu.initialize(imuParameters);
-            initAprilTag();
+            //initAprilTag();
 
             //label = telemetryTfod();
 
@@ -211,44 +213,64 @@ public class AutonomousBlueRight2024 extends LinearOpMode {
 //            liftEncoderDrive(1000, 1);
 //            goBackwardEncoder(12, 0.2);
 //            rotate(-81.25, 0.4);
+            aprilTagTarget = "BlueAllianceCenter";
+            DESIRED_TAG_ID = 2;
+
+
+
+
             goBackwardEncoder(86, 0.4);
+            armEncoderDrive(1000, 0.75);
 
             //detect the board
+
             while ((distanceSensor.getDistance(DistanceUnit.INCH) >= 23.75 && opModeIsActive())) {
                 telemetry.addData("distance: ", distanceSensor.getDistance(DistanceUnit.INCH));
                 telemetry.update();
-                strafeLeftEncoder(5, 0.75);
+                strafeLeftEncoder(7.5, 0.75);
                 sleep(100);
             }
 
-            //make sure you are 12 inches from board
-            while ((distanceSensor.getDistance(DistanceUnit.INCH) > 8.125 || distanceSensor.getDistance(DistanceUnit.INCH) < 7.875) && opModeIsActive()) {
-                if (distanceSensor.getDistance(DistanceUnit.INCH) < 8) {
-                    goForwardEncoder(8 - distanceSensor.getDistance(DistanceUnit.INCH), 0.2);
-                } else if (distanceSensor.getDistance(DistanceUnit.INCH) > 8) {
-                    goBackwardEncoder(distanceSensor.getDistance(DistanceUnit.INCH) - 8, 0.2);
+            while ((distanceSensor.getDistance(DistanceUnit.INCH) > 5.125 || distanceSensor.getDistance(DistanceUnit.INCH) < 4.875) && opModeIsActive()) {
+                if (distanceSensor.getDistance(DistanceUnit.INCH) < 5) {
+                    goForwardEncoder(5 - distanceSensor.getDistance(DistanceUnit.INCH), 0.2);
+                } else if (distanceSensor.getDistance(DistanceUnit.INCH) > 5) {
+                    goBackwardEncoder(distanceSensor.getDistance(DistanceUnit.INCH) - 5, 0.2);
                 }
             }
 
             //telemetry AprilTag
-            while(DESIRED_TAG_ID != aprilTagTarget && distanceSensor.getDistance(DistanceUnit.INCH) < 24) {
-                aprilTagTarget = telemetryAprilTag();
-                strafeLeftEncoder(3.125, 0.2);
+
+            while(count != DESIRED_TAG_ID && distanceSensor.getDistance(DistanceUnit.INCH) < 26.5) {
+                count++;
+                sleep(250);
+                strafeLeftEncoder(7.25, 0.2);
             }
 
-            sleep(100);
-            armEncoderDrive(1250, 0.5);
-            liftEncoderDrive(-2000, -1.0);
+            goBackwardEncoder(5, 0.25);
+            armEncoderDrive(2250, 0.75);
+            sleep(2250);
+            armServo.setPosition(0.05);
+            sleep(1500);
+            clawL.setPosition(clawLOpen);
             clawR.setPosition(clawROpen);
+            sleep(1000);
+            armEncoderDrive(1000, 0.75);
+            sleep(1000);
+            goForwardEncoder(1.5, 0.75);
 
-            while(distanceSensor.getDistance(DistanceUnit.INCH) < 24) {
-                strafeLeftEncoder(4, 0.2);
-                sleep(100);
+            if(count == 1) {
+                strafeLeftEncoder(26, 0.4);
+            } else if(count == 2) {
+                strafeLeftEncoder(17, 0.4);
+            } else if(count == 3) {
+                strafeLeftEncoder(9, 0.4);
             }
 
-
-            strafeLeftEncoder(10, 0.2);
-            goBackwardEncoder(20, 0.2);
+            goForwardEncoder(1.25, 0.2);
+            strafeLeftEncoder(8, 0.2);
+            goBackwardEncoder(17.5, 0.2);
+            armServo.setPosition(0);
             break;
         }
 
@@ -485,51 +507,72 @@ public class AutonomousBlueRight2024 extends LinearOpMode {
 //        tfod.setMinResultConfidence(0.75f);
 //    }
 
-    private void initAprilTag() {
-
-        // Create the AprilTag processor the easy way.
-        aprilTag = AprilTagProcessor.easyCreateWithDefaults();
-
-        // Create the vision portal the easy way.
-        if (USE_WEBCAM) {
-            visionPortal = VisionPortal.easyCreateWithDefaults(
-                    hardwareMap.get(WebcamName.class, "webcam"), aprilTag);
-        } else {
-            visionPortal = VisionPortal.easyCreateWithDefaults(
-                    BuiltinCameraDirection.BACK, aprilTag);
-        }
-
-    }   // end method initAprilTag()
-// end method initAprilTag()
-
-    private String telemetryAprilTag() {
-
-        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
-        telemetry.addData("# AprilTags Detected", currentDetections.size());
-
-        // Step through the list of detections and display info for each one.
-        for (AprilTagDetection detection : currentDetections) {
-            if (detection.metadata != null) {
-                telemetry.addLine(String.format("\n==== (ID %d) %s", detection.id, detection.metadata.name));
-                telemetry.addLine(String.format("XYZ %6.1f %6.1f %6.1f  (inch)", detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z));
-                telemetry.addLine(String.format("PRY %6.1f %6.1f %6.1f  (deg)", detection.ftcPose.pitch, detection.ftcPose.roll, detection.ftcPose.yaw));
-                telemetry.addLine(String.format("RBE %6.1f %6.1f %6.1f  (inch, deg, deg)", detection.ftcPose.range, detection.ftcPose.bearing, detection.ftcPose.elevation));
-            } else {
-                telemetry.addLine(String.format("\n==== (ID %d) Unknown", detection.id));
-                telemetry.addLine(String.format("Center %6.0f %6.0f   (pixels)", detection.center.x, detection.center.y));
-            }
-
-            return detection.metadata.name;
-        }   // end for() loop
-
-        // Add "key" information to telemetry
-        telemetry.addLine("\nkey:\nXYZ = X (Right), Y (Forward), Z (Up) dist.");
-        telemetry.addLine("PRY = Pitch, Roll & Yaw (XYZ Rotation)");
-        telemetry.addLine("RBE = Range, Bearing & Elevation");
+//    private void initAprilTag() {
+//
+//        // Create the AprilTag processor.
+//        aprilTag = new AprilTagProcessor.Builder()
+//                //.setDrawAxes(false)
+//                //.setDrawCubeProjection(false)
+//                //.setDrawTagOutline(true)
+//                //.setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
+//                //.setTagLibrary(AprilTagGameDatabase.getCenterStageTagLibrary())
+//                //.setOutputUnits(DistanceUnit.INCH, AngleUnit.DEGREES)
+//
+//                // == CAMERA CALIBRATION ==
+//                // If you do not manually specify calibration parameters, the SDK will attempt
+//                // to load a predefined calibration for your camera.
+//                //.setLensIntrinsics(578.272, 578.272, 402.145, 221.506)
+//
+//                // ... these parameters are fx, fy, cx, cy.
+//
+//                .build();
+//
+//        // Create the vision portal by using a builder.
+//        VisionPortal.Builder builder = new VisionPortal.Builder();
+//
+//        // Set the camera (webcam vs. built-in RC phone camera).
+//        if (USE_WEBCAM) {
+//            builder.setCamera(hardwareMap.get(WebcamName.class, "Webcam"));
+//        } else {
+//            builder.setCamera(BuiltinCameraDirection.BACK);
+//        }
+//
+//        builder.addProcessor(aprilTag);
+//
+//        // Build the Vision Portal, using the above settings.
+//        visionPortal = builder.build();
+//        sleep(50);
+//    }
 
 
-        return null;
-    }
+//    private String telemetryAprilTag() {
+//
+//        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
+//        telemetry.addData("# AprilTags Detected", currentDetections.size());
+//
+//        // Step through the list of detections and display info for each one.
+//        for (AprilTagDetection detection : currentDetections) {
+//            if (detection.metadata != null) {
+//                telemetry.addLine(String.format("\n==== (ID %d) %s", detection.id, detection.metadata.name));
+//                telemetry.addLine(String.format("XYZ %6.1f %6.1f %6.1f  (inch)", detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z));
+//                telemetry.addLine(String.format("PRY %6.1f %6.1f %6.1f  (deg)", detection.ftcPose.pitch, detection.ftcPose.roll, detection.ftcPose.yaw));
+//                telemetry.addLine(String.format("RBE %6.1f %6.1f %6.1f  (inch, deg, deg)", detection.ftcPose.range, detection.ftcPose.bearing, detection.ftcPose.elevation));
+//            } else {
+//                telemetry.addLine(String.format("\n==== (ID %d) Unknown", detection.id));
+//                telemetry.addLine(String.format("Center %6.0f %6.0f   (pixels)", detection.center.x, detection.center.y));
+//            }
+//
+//            return detection.metadata.name;
+//        }   // end for() loop
+//
+//        // Add "key" information to telemetry
+//        telemetry.addLine("\nkey:\nXYZ = X (Right), Y (Forward), Z (Up) dist.");
+//        telemetry.addLine("PRY = Pitch, Roll & Yaw (XYZ Rotation)");
+//        telemetry.addLine("RBE = Range, Bearing & Elevation");
+//
+//
+//        return null;
+//    }
 
 
 //    private String telemetryTfod() {
